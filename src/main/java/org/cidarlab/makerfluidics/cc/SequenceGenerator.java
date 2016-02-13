@@ -7,7 +7,9 @@ package org.cidarlab.makerfluidics.cc;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import org.cidarlab.makerfluidics.Hardware.ControlDevice;
 
 /**
  *
@@ -15,13 +17,25 @@ import java.util.HashMap;
  */
 public class SequenceGenerator {
     
-    int globaltimepoint;
+    private int globaltimepoint;
     
     private ArrayList<Sequence> sequences;
     
     private ArrayList<HWCommand> commands;
+
+    public ArrayList<HWCommand> getCommands() {
+        return commands;
+    }
     
-    public SequenceGenerator(String cmdString){
+    private ControlDevice device;
+    
+    /**
+     *
+     * @param cmdString the value of cmdString
+     * @param deviceType the value of deviceType
+     */
+    public SequenceGenerator(String cmdString, ControlDevice deviceType){
+        device = deviceType;
         globaltimepoint = 0;
         sequences = new ArrayList<>();
         commands = new ArrayList<>();
@@ -32,9 +46,10 @@ public class SequenceGenerator {
         String[] cmdlines = cmdString.split("\n");
         String[] tokens;
         Sequence newSequence = new Sequence();
+        boolean isfirsttimeflag = true;
         for(String line : cmdlines){
             tokens = line.split(" ");
-            boolean isfirsttimeflag = true;
+            
             switch(tokens[0]){
                 case "COMMAND":
                     //create a new time point for execution
@@ -60,7 +75,7 @@ public class SequenceGenerator {
         }
         
         for(Sequence seq : sequences){
-            commands.addAll(seq.generateHWCommands(globaltimepoint));
+            commands.addAll(seq.generateHWCommands(globaltimepoint,device));
             globaltimepoint+= (seq.hold_time + seq.setup_time);
         }
         
@@ -68,48 +83,69 @@ public class SequenceGenerator {
     }
 
     private void sortcommandstemporally() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        /*
+        TODO : Run through each of the commands and then arrange them in 
+        a chronological order.
+        */
+        Collections.sort(commands);
     }
-
-    void getCommands() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    private static class Sequence {
+    
+    //Member Classes
+    private class Sequence {
         
-        public int timepoint;
+        public int localtimepoint;
         
         float setup_time = 0;
         float hold_time = 0;
         HashMap<String,Boolean> portstochange ;
         
+        /**
+         * This object is a logical representation of every command that has
+         * been generated with cassie's classical control system intended for
+         * biostream. 
+         * 
+         * This entire implementation might change when a new control generation
+         * mechanism is created.
+         * 
+         */
         public Sequence() {
             //TODO : Check if this one works properly
             portstochange = new HashMap<>();
         }
         
-        private ArrayList<HWCommand> generateHWCommands(int startpoint) {
-            timepoint = startpoint;
+        /**
+         *
+         * @param startpoint the value of startpoint
+         * @param device the value of device
+         */
+        private ArrayList<HWCommand> generateHWCommands(int startpoint, ControlDevice device) {
+            localtimepoint = startpoint;
             
             ArrayList<HWCommand> cmdlist = new ArrayList<>();
             /*
-            Here we take the time startpoint generate commands at timepoint + setup_time
+            Here we take the time startpoint generate commands at localtimepoint + setup_time
             and then generate the reversing commands at timpoint + setup_time + hold_time
             */
             
             for(String key : portstochange.keySet()){
-                //TODO: Generate the HW command for set at timepoint + setup_time , add to cmdlist
+                String cmdText,cmdTextUndo;
+                if(portstochange.get(key)){
+                    cmdText = device.getTurnONCommand(key);
+                    cmdTextUndo = device.getTurnONCommand(key);
+                }else{
+                    cmdText = device.getTurnOFFCommand(key);
+                    cmdTextUndo = device.getTurnONCommand(key);
+                }
+                
+                //Generate the HW command for set at localtimepoint + setup_time , add to cmdlist
+                cmdlist.add(new HWCommand(localtimepoint+setup_time,cmdText));
                 
                 //TODO: Generate the HW command for reset at timpoint + setup_time + hold_time cmdlist
+                cmdlist.add(new HWCommand(localtimepoint+setup_time+hold_time,cmdTextUndo));
             }
             
             return cmdlist;
         }
     }
 
-    private static class HWCommand {
-
-        public HWCommand() {
-        }
-    }
 }
