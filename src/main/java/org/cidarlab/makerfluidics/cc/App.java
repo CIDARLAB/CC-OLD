@@ -8,10 +8,12 @@ package org.cidarlab.makerfluidics.cc;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFileChooser;
 import javax.swing.UIManager;
+import org.cidarlab.makerfluidics.Hardware.SyringePumps;
 
 /**
  *
@@ -21,6 +23,7 @@ public class App extends javax.swing.JFrame {
 
     private String cmdText;
     private SequenceGenerator generator;
+    private ArrayList<HWCommand> commandlist;
     
     /**
      * Creates new form App
@@ -234,10 +237,17 @@ public class App extends javax.swing.JFrame {
     }//GEN-LAST:event_openCommandsButtonActionPerformed
 
     private void generateHWCommandsButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_generateHWCommandsButtonActionPerformed
-        
-        generator = new SequenceGenerator(cmdText);
-        generator.getCommands();
-        
+        /*
+        TODO : Check which item is selected in the combo box and then instantiate
+        the sequence generator's second parameter based on that.
+        */
+        generateHWCommandsButton.setEnabled(false);
+        generator = new SequenceGenerator(cmdText, new SyringePumps());
+        commandlist = generator.getCommands();
+        cmdTextArea.setText("");
+        for(HWCommand c: commandlist){
+            cmdTextArea.append(c.getString()+"\n");
+        }
         sequenceControlPanel.setEnabled(true);
     }//GEN-LAST:event_generateHWCommandsButtonActionPerformed
 
