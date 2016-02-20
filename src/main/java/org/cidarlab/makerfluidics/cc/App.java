@@ -5,6 +5,7 @@
  */
 package org.cidarlab.makerfluidics.cc;
 
+import com.fazecast.jSerialComm.SerialPort;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,8 +13,9 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.UIManager;
-import org.cidarlab.makerfluidics.Hardware.SyringePumps;
+import org.cidarlab.makerfluidics.Hardware.SyringePumpBoard;
 
 /**
  *
@@ -24,12 +26,28 @@ public class App extends javax.swing.JFrame {
     private String cmdText;
     private SequenceGenerator generator;
     private ArrayList<HWCommand> commandlist;
+    private Board device;  
+    
+    SerialComm channel;
+    
+    private boolean panelState = false;
+    
+    private boolean startState = false;
+    
+    private boolean pauseState = false;
+    
+    private boolean stopState = false;
     
     /**
      * Creates new form App
      */
     public App() {
+        device = new Board(null, null);
+        channel = new SerialComm();
         initComponents();
+        for(SerialPort p : channel.getCommPorts()){
+            deviceComboBox.addItem(p.getSystemPortName());
+        }
     }
 
     /**
@@ -58,6 +76,10 @@ public class App extends javax.swing.JFrame {
         generateHWCommandsButton = new javax.swing.JButton();
         generationProgressBar = new javax.swing.JProgressBar();
         jComboBox1 = new javax.swing.JComboBox();
+        jSeparator1 = new javax.swing.JSeparator();
+        deviceComboBox = new javax.swing.JComboBox();
+        connectButton = new javax.swing.JButton();
+        jLabel3 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -80,19 +102,25 @@ public class App extends javax.swing.JFrame {
         sequenceControlPanel.setEnabled(false);
 
         startSequenceButton.setText("Start Sequence");
-
-        org.jdesktop.beansbinding.Binding binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ_WRITE, sequenceControlPanel, org.jdesktop.beansbinding.ELProperty.create("${enabled}"), startSequenceButton, org.jdesktop.beansbinding.BeanProperty.create("enabled"));
-        bindingGroup.addBinding(binding);
+        startSequenceButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                startSequenceButtonActionPerformed(evt);
+            }
+        });
 
         pauseSequenceButton.setText("Pause Sequence");
-
-        binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ_WRITE, sequenceControlPanel, org.jdesktop.beansbinding.ELProperty.create("${enabled}"), pauseSequenceButton, org.jdesktop.beansbinding.BeanProperty.create("enabled"));
-        bindingGroup.addBinding(binding);
+        pauseSequenceButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                pauseSequenceButtonActionPerformed(evt);
+            }
+        });
 
         stopSequenceButton.setText("Stop Sequence");
-
-        binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ_WRITE, sequenceControlPanel, org.jdesktop.beansbinding.ELProperty.create("${enabled}"), stopSequenceButton, org.jdesktop.beansbinding.BeanProperty.create("enabled"));
-        bindingGroup.addBinding(binding);
+        stopSequenceButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                stopSequenceButtonActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout sequenceControlPanelLayout = new javax.swing.GroupLayout(sequenceControlPanel);
         sequenceControlPanel.setLayout(sequenceControlPanelLayout);
@@ -126,7 +154,7 @@ public class App extends javax.swing.JFrame {
 
         generateHWCommandsButton.setText("Generate HW Commands");
 
-        binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ_WRITE, generateCommandPanel, org.jdesktop.beansbinding.ELProperty.create("${enabled}"), generateHWCommandsButton, org.jdesktop.beansbinding.BeanProperty.create("enabled"));
+        org.jdesktop.beansbinding.Binding binding = org.jdesktop.beansbinding.Bindings.createAutoBinding(org.jdesktop.beansbinding.AutoBinding.UpdateStrategy.READ_WRITE, generateCommandPanel, org.jdesktop.beansbinding.ELProperty.create("${enabled}"), generateHWCommandsButton, org.jdesktop.beansbinding.BeanProperty.create("enabled"));
         bindingGroup.addBinding(binding);
 
         generateHWCommandsButton.addActionListener(new java.awt.event.ActionListener() {
@@ -167,6 +195,16 @@ public class App extends javax.swing.JFrame {
                 .addContainerGap())
         );
 
+        connectButton.setEnabled(false);
+        connectButton.setLabel("Connect");
+        connectButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                connectButtonActionPerformed(evt);
+            }
+        });
+
+        jLabel3.setText("Device:");
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -191,13 +229,29 @@ public class App extends javax.swing.JFrame {
                             .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 445, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
+            .addComponent(jSeparator1)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(17, 17, 17)
+                .addComponent(jLabel3)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(deviceComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(connectButton)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
+                .addGap(6, 6, 6)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(deviceComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(connectButton)
+                    .addComponent(jLabel3))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(85, 85, 85)
+                        .addGap(42, 42, 42)
                         .addComponent(openCommandsButton)
                         .addGap(18, 18, 18)
                         .addComponent(generateCommandPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -206,11 +260,11 @@ public class App extends javax.swing.JFrame {
                         .addGap(41, 41, 41)
                         .addComponent(jLabel1))
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(10, 10, 10)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jLabel2)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jScrollPane1)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 382, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(18, 18, 18)
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 90, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
@@ -242,7 +296,7 @@ public class App extends javax.swing.JFrame {
         the sequence generator's second parameter based on that.
         */
         generateHWCommandsButton.setEnabled(false);
-        generator = new SequenceGenerator(cmdText, new SyringePumps());
+        generator = new SequenceGenerator(cmdText, new SyringePumpBoard("portmapping.ini", null));
         commandlist = generator.getCommands();
         cmdTextArea.setText("");
         for(HWCommand c: commandlist){
@@ -250,6 +304,48 @@ public class App extends javax.swing.JFrame {
         }
         sequenceControlPanel.setEnabled(true);
     }//GEN-LAST:event_generateHWCommandsButtonActionPerformed
+
+    private void startSequenceButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_startSequenceButtonActionPerformed
+        // TODO add your handling code here:
+        startState = false;
+        pauseState = true;
+        stopState = true;
+        setButtonEnabled();
+        device.startSequence();
+    }//GEN-LAST:event_startSequenceButtonActionPerformed
+
+    private void pauseSequenceButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_pauseSequenceButtonActionPerformed
+        // TODO add your handling code here:
+        pauseState = false;
+        startState = true;
+        stopState = true;
+        setButtonEnabled();
+        device.pauseSequence();
+    }//GEN-LAST:event_pauseSequenceButtonActionPerformed
+
+    private void stopSequenceButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stopSequenceButtonActionPerformed
+        // TODO add your handling code here:
+        stopState = false;
+        pauseState = false;
+        startState = true;
+        setButtonEnabled();
+        device.stopSequence();
+    }//GEN-LAST:event_stopSequenceButtonActionPerformed
+
+    private void connectButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_connectButtonActionPerformed
+        if(channel.connectToPort(deviceComboBox.getSelectedItem().toString())){
+            connectButton.setEnabled(false);
+            deviceComboBox.setEnabled(false);
+        }
+        else{
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Could not Connect to " + 
+                            deviceComboBox.getSelectedItem().toString(),
+                    "ERROR", JOptionPane.ERROR_MESSAGE);
+        }
+        
+    }//GEN-LAST:event_connectButtonActionPerformed
 
     /**
      * @param args the command line arguments
@@ -274,6 +370,8 @@ public class App extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextArea cmdTextArea;
+    private javax.swing.JButton connectButton;
+    private javax.swing.JComboBox deviceComboBox;
     private javax.swing.JPanel generateCommandPanel;
     private javax.swing.JButton generateHWCommandsButton;
     private javax.swing.JProgressBar generationProgressBar;
@@ -281,8 +379,10 @@ public class App extends javax.swing.JFrame {
     private javax.swing.JFileChooser jFileChooser1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel3;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JSeparator jSeparator1;
     private javax.swing.JButton openCommandsButton;
     private javax.swing.JButton pauseSequenceButton;
     private javax.swing.JPanel sequenceControlPanel;
@@ -301,4 +401,11 @@ public class App extends javax.swing.JFrame {
             Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
+    
+    private void setButtonEnabled() {
+        startSequenceButton.setEnabled(startState);
+        pauseSequenceButton.setEnabled(pauseState);
+        stopSequenceButton.setEnabled(stopState);
+    }
+    
 }
