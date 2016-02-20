@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import org.cidarlab.makerfluidics.Hardware.ControlDevice;
+import org.cidarlab.makerfluidics.Hardware.ControlBoard;
 
 /**
  *
@@ -27,14 +27,14 @@ public class SequenceGenerator {
         return commands;
     }
     
-    private ControlDevice device;
+    private ControlBoard device;
     
     /**
      *
      * @param cmdString the value of cmdString
      * @param deviceType the value of deviceType
      */
-    public SequenceGenerator(String cmdString, ControlDevice deviceType){
+    public SequenceGenerator(String cmdString, ControlBoard deviceType){
         device = deviceType;
         globaltimepoint = 0;
         sequences = new ArrayList<>();
@@ -74,10 +74,14 @@ public class SequenceGenerator {
             }
         }
         
+        commands.addAll(getInitCommands(device));
+        
         for(Sequence seq : sequences){
             commands.addAll(seq.generateHWCommands(globaltimepoint,device));
             globaltimepoint+= (seq.hold_time + seq.setup_time);
         }
+        
+        commands.addAll(getFinishCommands(device));
         
         sortcommandstemporally();
     }
@@ -88,6 +92,22 @@ public class SequenceGenerator {
         a chronological order.
         */
         Collections.sort(commands);
+    }
+
+    private ArrayList<HWCommand> getInitCommands(ControlBoard device) {
+        ArrayList<HWCommand> retcmds = new ArrayList<>();
+        for(String cmdTxt : device.getInitCommands()){
+            retcmds.add(new HWCommand(globaltimepoint, cmdTxt));
+        }
+        return retcmds;
+    }
+
+    private ArrayList<HWCommand> getFinishCommands(ControlBoard device) {
+        ArrayList<HWCommand> retcmds = new ArrayList<>();
+        for(String cmdTxt : device.getFinishCommands()){
+            retcmds.add(new HWCommand(globaltimepoint, cmdTxt));
+        }
+        return retcmds;
     }
     
     //Member Classes
@@ -118,7 +138,7 @@ public class SequenceGenerator {
          * @param startpoint the value of startpoint
          * @param device the value of device
          */
-        private ArrayList<HWCommand> generateHWCommands(int startpoint, ControlDevice device) {
+        private ArrayList<HWCommand> generateHWCommands(int startpoint, ControlBoard device) {
             localtimepoint = startpoint;
             
             ArrayList<HWCommand> cmdlist = new ArrayList<>();
